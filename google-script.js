@@ -1,7 +1,7 @@
 function onOpen(e) {
   var menu = SpreadsheetApp.getUi().createAddonMenu();
   
-  menu.addItem('Подготовить таблицу к работе.', 'initializeActiveSheet');
+  menu.addItem('Подготовить таблицу к работе', 'initializeActiveSheet');
   menu.addToUi();
 }
 
@@ -74,24 +74,37 @@ function initializeActiveSheet() {
   sheetActive.setActiveSheet(sheetOptions);
   
   sheetOptions.getRange('A1').setValue('Ссылка авторизации');
-  sheetOptions.getRange('A2').setValue('URL трансляции');
-  sheetOptions.getRange('A3').setValue('Остаток итераций');
+  sheetOptions.getRange('A2').setValue('Прямая ссылка на трансляцию');
+  sheetOptions.getRange('A3').setValue('Дата и время окончания');
+  
+  var rule = SpreadsheetApp.newDataValidation().requireTextIsUrl().build();
+
+  sheetOptions.getRange('B1').setDataValidation(rule);
+  sheetOptions.getRange('B2').setDataValidation(rule);
+  
+  var rule = SpreadsheetApp.newDataValidation().requireDate().build();
+  
+  sheetOptions.getRange('B3').setDataValidation(rule);
+  sheetOptions.getRange('B3').setValue(new Date());
+  sheetOptions.getRange('B3').setNumberFormat("dd.MM.yyyy hh:mm:ss");
   
   sheetOptions.getRange('B1').setNote('После запуска скрипта в правой части экрана появится ссылка на авторизацию и предоставление прав в ВК.' +
                                       ' При успешной авторизации произойдет перенаправление на страницу с адресом формата:' +
                                       ' https://oauth.vk.com/blank.html#access_token=XXXXX&expires_in=0&user_id=39199554&state=123456.' +
                                       ' Ссылку на эту страницу нужно вставить в это поле.');
   sheetOptions.getRange('B2').setNote('URL трансляции в формате: https://vk.com/videoXXXXX_XXXXX. Его можно получить под видео: Поделиться -> Экспортировать -> Прямая ссылка.');
-  sheetOptions.getRange('B3').setNote('Количество оставшихся итераций выполнения программы. В это поле следует вписать натуральное число, ' +
-                                      'и, если все остальные поля заполнены, скрипт начнет работу.');
+  sheetOptions.getRange('B3').setNote('Скрипт будет выполняться до тех пор, пока не наступит время, указанное в ячейке.');
   
   sheetOptions.getRange('A1:A3').setFontWeight('bold');
   sheetOptions.getRange('A1:B3').setBorder(true, true, true, true, true, true);
   
   sheetOptions.autoResizeColumn(1);
+  sheetOptions.autoResizeColumn(2);
   
+  // Show a VK auth sidebar
   getVkToken();
   
+  // Create an onEdit trigger that will launch the main logic
   ScriptApp.newTrigger('onSheetEdit')
   .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
   .onEdit()
@@ -101,6 +114,12 @@ function initializeActiveSheet() {
   ui.alert("Наведите курсор на ячейки B1:B3 для того, чтобы показать примечания.");
 }
 
+// Function that returns true if script should continue running
+function stopAllRunningScripts() {
+  PropertiesService.getScriptProperties().deleteAllProperties();
+}
+
+// Launches every time sheet is edited
 function onSheetEdit() {
   var cells = sheetOptions.getRange('B1:B3').getValues();
   
@@ -113,7 +132,11 @@ function onSheetEdit() {
     }
   }
   
-  if (isReady) {
+  // If all fields are filled and time in B3 is later than now
+  if (isReady && sheetOptions.getRange('B3').getValue().valueOf() > (new Date()).valueOf()) {
+    // Disable all running scripts
+    stopAllRunningScripts();
+    
     // Parse value fields
     var userToken = sheetOptions.getRange('B1').getValue().toString();
     userToken = userToken.substring(userToken.search('#access_token=') + '#access_token='.length, userToken.search('&expires_in'));
@@ -133,8 +156,12 @@ function onSheetEdit() {
     sheetComments = sheetActive.insertSheet();
     sheetComments.setName('Комментарии');
     
-    while (sheetOptions.getRange('B3').getValue() > 0) {
-      sheetOptions.getRange('B3').setValue(sheetOptions.getRange('B3').getValue() - 1);
+    // Set global run property
+    var scriptId = (new Date).valueOf();
+    PropertiesService.getScriptProperties().setProperty(scriptId, "running");
+    
+    // While current date is less than date in the cell and while global run property is true
+    while (sheetOptions.getRange('B3').getValue().valueOf() > (new Date()).valueOf() && PropertiesService.getScriptProperties().getProperty(scriptId)) {
       offset = receiveVKComments(userToken, ownerId, videoId, offset);
       
       Utilities.sleep(1000);
