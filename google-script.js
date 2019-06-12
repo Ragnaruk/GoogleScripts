@@ -9,10 +9,6 @@ function onInstall(e) {
   onOpen(e);
 }
 
-var sheetActive = SpreadsheetApp.getActiveSpreadsheet();;
-var sheetOptions = sheetActive.getSheets()[0];
-var sheetComments = sheetActive.getSheetByName('Комментарии');;
-
 function getVkToken() {
   var authorizationUrl = 'https://oauth.vk.com/authorize?client_id=6947304&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=video,offline&response_type=token&v=5.95&state=123456';
   
@@ -61,6 +57,10 @@ function getVkToken() {
   SpreadsheetApp.getUi().showSidebar(page);
 }
 
+var sheetActive = SpreadsheetApp.getActiveSpreadsheet();;
+var sheetOptions = sheetActive.getSheets()[0];
+var sheetComments = sheetActive.getSheetByName('Комментарии');;
+
 function initializeActiveSheet() {
   // Delete all triggers
   var triggers = ScriptApp.getProjectTriggers();
@@ -69,14 +69,9 @@ function initializeActiveSheet() {
   }
   
   sheetOptions = sheetActive.getSheets()[0];
+  sheetOptions.setName('Настройки')
   
-  // Create an empty comments sheet
-  if (sheetComments != null) {
-    sheetActive.deleteSheet(sheetComments);
-  }
-
-  sheetComments = sheetActive.insertSheet();
-  sheetComments.setName('Комментарии');
+  sheetActive.setActiveSheet(sheetOptions);
   
   sheetOptions.getRange('A1').setValue('Ссылка авторизации');
   sheetOptions.getRange('A2').setValue('URL трансляции');
@@ -101,6 +96,9 @@ function initializeActiveSheet() {
   .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
   .onEdit()
   .create();
+  
+  var ui = SpreadsheetApp.getUi();
+  ui.alert("Наведите курсор на ячейки B1:B3 для того, чтобы показать примечания.");
 }
 
 function onSheetEdit() {
@@ -126,6 +124,14 @@ function onSheetEdit() {
     var videoId = videoUrl[1];
     
     var offset = 0;
+  
+    // Create an empty comments sheet
+    if (sheetComments != null) {
+      sheetActive.deleteSheet(sheetComments);
+    }
+    
+    sheetComments = sheetActive.insertSheet();
+    sheetComments.setName('Комментарии');
     
     while (sheetOptions.getRange('B3').getValue() > 0) {
       sheetOptions.getRange('B3').setValue(sheetOptions.getRange('B3').getValue() - 1);
