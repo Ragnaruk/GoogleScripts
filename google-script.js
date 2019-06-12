@@ -1,3 +1,14 @@
+function onOpen(e) {
+  var menu = SpreadsheetApp.getUi().createAddonMenu();
+  
+  menu.addItem('Подготовить таблицу к работе.', 'initializeActiveSheet');
+  menu.addToUi();
+}
+
+function onInstall(e) {
+  onOpen(e);
+}
+
 var sheetActive = SpreadsheetApp.getActiveSpreadsheet();;
 var sheetOptions = sheetActive.getSheets()[0];
 var sheetComments = sheetActive.getSheetByName('Комментарии');;
@@ -5,7 +16,45 @@ var sheetComments = sheetActive.getSheetByName('Комментарии');;
 function getVkToken() {
   var authorizationUrl = 'https://oauth.vk.com/authorize?client_id=6947304&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=video,offline&response_type=token&v=5.95&state=123456';
   
-  var template = HtmlService.createTemplate('<a href="<?= authorizationUrl ?>" target="_blank">Авторизоваться в ВК</a>.');
+  var template = HtmlService.createTemplate('<style type="text/css">' +
+                                            '	button#oauth {' +
+                                            '		padding: 7px 16px 8px;' +
+                                            '		margin: 0;' +
+                                            '		font-size: 12.5px;' +
+                                            '		display: inline-block;' +
+                                            '		zoom: 1;' +
+                                            '		cursor: pointer;' +
+                                            '		white-space: nowrap;' +
+                                            '		outline: none;' +
+                                            '		font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica Neue, sans-serif;' +
+                                            '		vertical-align: top;' +
+                                            '		line-height: 15px;' +
+                                            '		text-align: center;' +
+                                            '		text-decoration: none;' +
+                                            '		background: none;' +
+                                            '		background-color: #5181b8;' +
+                                            '		color: #fff;' +
+                                            '		border: 0;' +
+                                            '		border-radius: 4px;' +
+                                            '		box-sizing: border-box;' +
+                                            '		width: 100%;' +
+                                            '	}' +
+                                            '</style>' +
+                                            '<script>' +
+                                            '	function redirect() {' +
+                                            '		window.open("<?= authorizationUrl ?>", "_blank");' +
+                                            '	}' +
+                                            '</script>' +
+                                            '<p>' +
+                                            'После нажатия на кнопку ниже браузер перенаправит вас на сайт ВК, где нужно будет авторизоваться и разрешить приложению доступ к вашим данным.' +
+                                            '</p>' +
+                                            '<p>' +
+                                            'После окончания авторизации вас перенаправит на страницу с надписью: "Пожалуйста, не копируйте данные из адресной строки для сторонних сайтов. Таким образом Вы можете потерять доступ к Вашему аккаунту."' +
+                                            '</p>' +
+                                            '<p>' +
+                                            'Вам нужно будет скопировать адрес этой страницы из адресной строки в ячейку B1.' +
+                                            '</p>' +
+                                            '<button id="oauth" onclick="redirect()">Авторизоваться в ВК</button>');
   template.authorizationUrl = authorizationUrl;
   var page = template.evaluate();
   
