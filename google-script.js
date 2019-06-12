@@ -37,7 +37,7 @@ function initializeActiveSheet() {
                                       ' При успешной авторизации произойдет перенаправление на страницу с адресом формата:' +
                                       ' https://oauth.vk.com/blank.html#access_token=XXXXX&expires_in=0&user_id=39199554&state=123456.' +
                                       ' Ссылку на эту страницу нужно вставить в это поле.');
-  sheetOptions.getRange('B2').setNote('URL трансляции в формате: https://vk.com/videoXXXXX_XXXXX.');
+  sheetOptions.getRange('B2').setNote('URL трансляции в формате: https://vk.com/videoXXXXX_XXXXX. Его можно получить под видео: Поделиться -> Экспортировать -> Прямая ссылка.');
   sheetOptions.getRange('B3').setNote('Количество оставшихся итераций выполнения программы. В это поле следует вписать натуральное число, ' +
                                       'и, если все остальные поля заполнены, скрипт начнет работу.');
   
