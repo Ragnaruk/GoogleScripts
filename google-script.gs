@@ -109,9 +109,6 @@ function initializeActiveSheet() {
   .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
   .onEdit()
   .create();
-  
-  var ui = SpreadsheetApp.getUi();
-  ui.alert("Наведите курсор на ячейки B1:B3 для того, чтобы показать примечания.");
 }
 
 // Function that returns true if script should continue running
