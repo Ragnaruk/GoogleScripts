@@ -9,7 +9,7 @@ function onInstall(e) {
   onOpen(e);
 }
 
-function getVkToken() {
+function showVKAuthSidebar() {
   var authorizationUrl = 'https://oauth.vk.com/authorize?client_id=6947304&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=video,offline&response_type=token&v=5.95&state=123456';
   
   var template = HtmlService.createTemplate('<style type="text/css">' +
@@ -57,19 +57,17 @@ function getVkToken() {
   SpreadsheetApp.getUi().showSidebar(page);
 }
 
-var sheetActive = SpreadsheetApp.getActiveSpreadsheet();;
+var sheetActive = SpreadsheetApp.getActiveSpreadsheet();
 var sheetOptions = sheetActive.getSheets()[0];
-var sheetComments = sheetActive.getSheetByName('Комментарии');;
+var sheetComments = sheetActive.getSheetByName('Комментарии');
 
 function initializeActiveSheet() {
-  // Delete all triggers
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    ScriptApp.deleteTrigger(triggers[i]);
-  }
+  // Delete all triggers and create an onEdit trigger that will launch the main logic
+  deleteAllTriggers();
   
+  // Initialize options sheet
   sheetOptions = sheetActive.getSheets()[0];
-  sheetOptions.setName('Настройки')
+  sheetOptions.setName('Настройки');
   
   sheetActive.setActiveSheet(sheetOptions);
   
@@ -92,23 +90,50 @@ function initializeActiveSheet() {
   
   sheetOptions.autoResizeColumns(1, 2);
   
-  // Show a VK auth sidebar
-  getVkToken();
   
-  // Create an onEdit trigger that will launch the main logic
+  showVKAuthSidebar();
+  createOnEditTrigger();
+}
+
+function stopAllRunningScripts() {
+  // Delete all comments triggers
+  if (PropertiesService.getScriptProperties().getProperty('commentsTriggers')) {
+    var commentsTriggers = JSON.parse(PropertiesService.getScriptProperties().getProperty('commentsTriggers'));
+    
+    for (var i = 0; i < commentsTriggers.length; i++) {
+      var triggerUid = commentsTriggers[i];
+      
+      ScriptApp.getProjectTriggers().some(function (trigger) {
+        if (trigger.getUniqueId() === triggerUid) {
+          ScriptApp.deleteTrigger(trigger);
+        }
+      })
+    }
+  }
+  
+  // Delete all global properties
+  PropertiesService.getScriptProperties().deleteAllProperties();
+}
+
+function deleteAllTriggers() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    ScriptApp.deleteTrigger(triggers[i]);
+  }
+}
+
+function createOnEditTrigger() {
   ScriptApp.newTrigger('onSheetEdit')
   .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
   .onEdit()
   .create();
 }
 
-// Function that returns true if script should continue running
-function stopAllRunningScripts() {
-  PropertiesService.getScriptProperties().deleteAllProperties();
-}
-
 // Launches every time sheet is edited
 function onSheetEdit() {
+  // Stop all currently running scripts and remove their triggers
+  stopAllRunningScripts();
+  
   var cells = sheetOptions.getRange('B1:B3').getValues();
   
   var isReady = true;
@@ -122,9 +147,6 @@ function onSheetEdit() {
   
   // If all fields are filled and time in B3 is later than now
   if (isReady && sheetOptions.getRange('B3').getValue().valueOf() > (new Date()).valueOf()) {
-    // Disable all running scripts
-    stopAllRunningScripts();
-    
     // Parse value fields
     var userToken = sheetOptions.getRange('B1').getValue().toString();
     userToken = userToken.substring(userToken.search('#access_token=') + '#access_token='.length, userToken.search('&expires_in'));
@@ -134,10 +156,26 @@ function onSheetEdit() {
     var ownerId = videoUrl[0];
     var videoId = videoUrl[1];
     
+    // Create variables for offset (number of the first comment to receive) and line number on the comments sheet
     var offset = 0;
     var lineNumberOnSheet = 2;
-  
-    // Create an empty comments sheet and prepare it for writing
+    
+    // Write all script variables to a global property
+    var properties = [];
+    properties.push(userToken);
+    properties.push(ownerId);
+    properties.push(videoId);
+    properties.push(offset);
+    properties.push(lineNumberOnSheet);
+    
+    // Create an id of the script from a timestamp
+    var scriptId = (new Date).valueOf();
+    
+    PropertiesService.getScriptProperties().setProperty(scriptId, JSON.stringify(properties));
+    
+    // Create an empty comments sheet and prepare it for writin
+    sheetComments = sheetActive.getSheetByName('Комментарии');
+    
     if (sheetComments != null) {
       sheetActive.deleteSheet(sheetComments);
     }
@@ -155,30 +193,82 @@ function onSheetEdit() {
     
     sheetComments.getRange('B2:B').setNumberFormat("dd.MM.yyyy hh:mm:ss");
     
-    // Set global run property for a kill-switch
-    var scriptId = (new Date).valueOf();
-    PropertiesService.getScriptProperties().setProperty(scriptId, "running");
+    // Create a trigger to launch scripts every 5 minutes to avoid 6 minute time limit of free accounts
+    createTimeTriggerToReceiveComments(scriptId)
+  }
+}
+
+function createTimeTriggerToReceiveComments(scriptId) {
+  // Run function once while time-based trigger is being created creating
+  startReceiveCommentsLoop(scriptId);
+  
+  // Create a trigger that will start in 5 minutes and run every 5 minute since then
+  var trigger = ScriptApp.newTrigger('startReceiveCommentsLoop')
+  .timeBased()
+  .everyMinutes(5)
+  .create();
+  
+  // Create a global variable to pass scriptId to triggered function
+  var triggerUid = trigger.getUniqueId();
+  
+  PropertiesService.getScriptProperties().setProperty(triggerUid, scriptId.toString());
+  
+  // Update a global variable to contain trigger uid
+  if (PropertiesService.getScriptProperties().getProperty('commentsTriggers')) {
+    var commentsTriggers = JSON.parse(PropertiesService.getScriptProperties().getProperty('commentsTriggers'));
+  } else {
+    var commentsTriggers = [];
+  }
+  
+  commentsTriggers.push(triggerUid);
+  
+  PropertiesService.getScriptProperties().setProperty('commentsTriggers', JSON.stringify(commentsTriggers));
+}
+
+// Create a loop to launch main logic
+function startReceiveCommentsLoop(e) {
+  // If this function is launch from trigger, get scriptId from it else get it directly
+  if (e.triggerUid) {
+    var triggerUid = e.triggerUid;
+    var scriptId = PropertiesService.getScriptProperties().getProperty(triggerUid);
+  } else {
+    var scriptId = e;
+  }
+  
+  if (PropertiesService.getScriptProperties().getProperty(scriptId)) {
+    var properties = getGlobalPropertiesOfAScript(scriptId);
+    var timeBegin = Date.now();
     
-    // While current date is less than date in the cell and while global run property is true
-    while (sheetOptions.getRange('B3').getValue().valueOf() > (new Date()).valueOf() && PropertiesService.getScriptProperties().getProperty(scriptId)) {
-      var resp = receiveVKComments(userToken, ownerId, videoId, offset, lineNumberOnSheet);
-      offset = resp[0];
-      lineNumberOnSheet = resp[1];
+    // While script has run less than 5 minutes, current date is less than date in the cell and while global properties of the script exist
+    while (Date.now() - timeBegin < 1000 * 60 * 5 && sheetOptions.getRange('B3').getValue().valueOf() > Date.now() && PropertiesService.getScriptProperties().getProperty(scriptId)) {
+      // Pass: userToken, ownerId, videoId, offset, lineNumberOnSheet
+      // Receive: offset, lineNumberOnSheet
+      var resp = receiveComments(properties[0], properties[1], properties[2], properties[3], properties[4]);
+      properties[3] = resp[0];
+      properties[4] = resp[1];
+      
+      // Update global properties of the script
+      PropertiesService.getScriptProperties().setProperty(scriptId, JSON.stringify(properties));
       
       Utilities.sleep(1000);
     }
   }
 }
 
-function receiveVKComments(userToken, ownerId, videoId, offset, lineNumberOnSheet) {
+function getGlobalPropertiesOfAScript(scriptId) {
+  return JSON.parse(PropertiesService.getScriptProperties().getProperty(scriptId));
+}
+
+// Main logic function
+function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet) {
   var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + 0 + '&access_token=' + userToken + '&v=5.95';
   
   var response = JSON.parse(UrlFetchApp.fetch(url).getContentText()).response;
   
   var numberOfComments = response.count;
   
-  if (numberOfComments - offset > 30) {
-    offset = numberOfComments - 30;
+  if (numberOfComments - offset > 50) {
+    offset = numberOfComments - 50;
   }
   
   for (var i = offset; i < numberOfComments; i += 100) {
@@ -220,8 +310,8 @@ function receiveVKComments(userToken, ownerId, videoId, offset, lineNumberOnShee
     var prev = "";
     var curr = "";
     for (var j = 0; j < response.count; j++) {
-      
-      if (response.items[j]) {
+      // If both response and comments sheet exist
+      if (response.items[j] && sheetComments) {
         curr = response.items[j].from_id + response.items[j].date + response.items[j].text;
         
         if (curr !== prev) {
