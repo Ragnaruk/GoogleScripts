@@ -77,14 +77,6 @@ function initializeActiveSheet() {
   sheetOptions.getRange('A2').setValue('Прямая ссылка на трансляцию');
   sheetOptions.getRange('A3').setValue('Дата и время окончания');
   
-  var rule = SpreadsheetApp.newDataValidation().requireTextIsUrl().build();
-
-  sheetOptions.getRange('B1').setDataValidation(rule);
-  sheetOptions.getRange('B2').setDataValidation(rule);
-  
-  var rule = SpreadsheetApp.newDataValidation().requireDate().build();
-  
-  sheetOptions.getRange('B3').setDataValidation(rule);
   sheetOptions.getRange('B3').setValue(new Date());
   sheetOptions.getRange('B3').setNumberFormat("dd.MM.yyyy hh:mm:ss");
   
@@ -98,8 +90,7 @@ function initializeActiveSheet() {
   sheetOptions.getRange('A1:A3').setFontWeight('bold');
   sheetOptions.getRange('A1:B3').setBorder(true, true, true, true, true, true);
   
-  sheetOptions.autoResizeColumn(1);
-  sheetOptions.autoResizeColumn(2);
+  sheetOptions.autoResizeColumns(1, 2);
   
   // Show a VK auth sidebar
   getVkToken();
@@ -144,8 +135,9 @@ function onSheetEdit() {
     var videoId = videoUrl[1];
     
     var offset = 0;
+    var lineNumberOnSheet = 2;
   
-    // Create an empty comments sheet
+    // Create an empty comments sheet and prepare it for writing
     if (sheetComments != null) {
       sheetActive.deleteSheet(sheetComments);
     }
@@ -153,20 +145,32 @@ function onSheetEdit() {
     sheetComments = sheetActive.insertSheet();
     sheetComments.setName('Комментарии');
     
-    // Set global run property
+    sheetComments.getRange('A1').setValue('Имя пользователя');
+    sheetComments.getRange('B1').setValue('Время комментария');
+    sheetComments.getRange('C1').setValue('Текст комментария');
+    sheetComments.getRange('D1').setValue('Ссылка на аватар');
+    
+    sheetComments.getRange('A1:D1').setFontWeight('bold');
+    sheetComments.autoResizeColumns(1, 4);
+    
+    sheetComments.getRange('B2:B').setNumberFormat("dd.MM.yyyy hh:mm:ss");
+    
+    // Set global run property for a kill-switch
     var scriptId = (new Date).valueOf();
     PropertiesService.getScriptProperties().setProperty(scriptId, "running");
     
     // While current date is less than date in the cell and while global run property is true
     while (sheetOptions.getRange('B3').getValue().valueOf() > (new Date()).valueOf() && PropertiesService.getScriptProperties().getProperty(scriptId)) {
-      offset = receiveVKComments(userToken, ownerId, videoId, offset);
+      var resp = receiveVKComments(userToken, ownerId, videoId, offset, lineNumberOnSheet);
+      offset = resp[0];
+      lineNumberOnSheet = resp[1];
       
       Utilities.sleep(1000);
     }
   }
 }
 
-function receiveVKComments(userToken, ownerId, videoId, offset) {
+function receiveVKComments(userToken, ownerId, videoId, offset, lineNumberOnSheet) {
   var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + 0 + '&access_token=' + userToken + '&v=5.95';
   
   var response = JSON.parse(UrlFetchApp.fetch(url).getContentText()).response;
@@ -190,8 +194,8 @@ function receiveVKComments(userToken, ownerId, videoId, offset) {
     var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + i + '&access_token=' + userToken + '&v=5.95';
     var response = JSON.parse(UrlFetchApp.fetch(url).getContentText()).response;
 
+    // Add all user ids to a string and separate them by commas
     var user_ids = "";
-    
     for (var j = 0; j < response.count; j++) {
       if (response.items[j]) {
         user_ids += response.items[j].from_id + ",";
@@ -212,22 +216,35 @@ function receiveVKComments(userToken, ownerId, videoId, offset) {
       userAvatars[id] = responseUser[j].photo_50;
     }
     
+    // Print comments while removing duplicates (a possible problem on the other end)
+    var prev = "";
+    var curr = "";
     for (var j = 0; j < response.count; j++) {
+      
       if (response.items[j]) {
-        var id = response.items[j].from_id
+        curr = response.items[j].from_id + response.items[j].date + response.items[j].text;
         
-        sheetComments.getRange(1 + j + offset, 1).setValue(userNames[id]);
-        sheetComments.getRange(1 + j + offset, 2).setValue(response.items[j].date);
-        sheetComments.getRange(1 + j + offset, 3).setValue(response.items[j].text);
-        sheetComments.getRange(1 + j + offset, 4).setValue(userAvatars[id]);
+        if (curr !== prev) {
+          var id = response.items[j].from_id;
+          var commentDate = new Date(response.items[j].date * 1000);
+          
+          sheetComments.getRange(lineNumberOnSheet, 1).setValue(userNames[id]);
+          sheetComments.getRange(lineNumberOnSheet, 2).setValue(commentDate);
+          sheetComments.getRange(lineNumberOnSheet, 3).setValue(response.items[j].text);
+          sheetComments.getRange(lineNumberOnSheet, 4).setValue(userAvatars[id]);
+          
+          lineNumberOnSheet++;
+          prev = curr;
+        }
       }
     }
     
+    // Sleep until the script has run for a full second in total
     var timeElapsed = Date.now() - timeBegin;
     if (timeElapsed < 1000) {
-      Utilities.sleep(1100 - timeElapsed);
+      Utilities.sleep(1000 - timeElapsed);
     }
   }
 
-  return numberOfComments;
+  return [numberOfComments, lineNumberOnSheet];
 }
