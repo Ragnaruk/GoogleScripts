@@ -287,8 +287,14 @@ function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet)
   
   var numberOfComments = response.count;
   
-  if (numberOfComments - offset > 50) {
-    offset = numberOfComments - 50;
+  // Limit a number of comments received in one function run to 500
+  if (numberOfComments - offset > 500) {
+    numberOfComments = offset + 500;
+  }
+  
+  // Create 500 lines when number of comments exceed number of existing rows
+  if (numberOfComments >= sheetComments.getMaxRows()) {
+    sheetComments.insertRowsAfter(sheetComments.getMaxRows(), 500);
   }
   
   for (var i = offset; i < numberOfComments; i += 100) {
