@@ -10,47 +10,54 @@ function onInstall(e) {
 }
 
 function showVKAuthSidebar() {
-  var authorizationUrl = 'https://oauth.vk.com/authorize?client_id=6947304&display=page&redirect_uri=https://oauth.vk.com/blank.html&scope=video,offline&response_type=token&v=5.95&state=123456';
+  var authorizationUrl = 'https://oauth.vk.com/authorize?client_id=6947304&display=page&' +
+    'redirect_uri=https://oauth.vk.com/blank.html&scope=video,offline&response_type=token&v=5.95&state=123456';
   
-  var template = HtmlService.createTemplate('<style type="text/css">' +
-                                            '	button#oauth {' +
-                                            '		padding: 7px 16px 8px;' +
-                                            '		margin: 0;' +
-                                            '		font-size: 12.5px;' +
-                                            '		display: inline-block;' +
-                                            '		zoom: 1;' +
-                                            '		cursor: pointer;' +
-                                            '		white-space: nowrap;' +
-                                            '		outline: none;' +
-                                            '		font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica Neue, sans-serif;' +
-                                            '		vertical-align: top;' +
-                                            '		line-height: 15px;' +
-                                            '		text-align: center;' +
-                                            '		text-decoration: none;' +
-                                            '		background: none;' +
-                                            '		background-color: #5181b8;' +
-                                            '		color: #fff;' +
-                                            '		border: 0;' +
-                                            '		border-radius: 4px;' +
-                                            '		box-sizing: border-box;' +
-                                            '		width: 100%;' +
-                                            '	}' +
-                                            '</style>' +
-                                            '<script>' +
-                                            '	function redirect() {' +
-                                            '		window.open("<?= authorizationUrl ?>", "_blank");' +
-                                            '	}' +
-                                            '</script>' +
-                                            '<p>' +
-                                            'После нажатия на кнопку ниже браузер перенаправит вас на сайт ВК, где нужно будет авторизоваться и разрешить приложению доступ к вашим данным.' +
-                                            '</p>' +
-                                            '<p>' +
-                                            'После окончания авторизации вас перенаправит на страницу с надписью: "Пожалуйста, не копируйте данные из адресной строки для сторонних сайтов. Таким образом Вы можете потерять доступ к Вашему аккаунту."' +
-                                            '</p>' +
-                                            '<p>' +
-                                            'Вам нужно будет скопировать адрес этой страницы из адресной строки в ячейку B1.' +
-                                            '</p>' +
-                                            '<button id="oauth" onclick="redirect()">Авторизоваться в ВК</button>');
+  var template = HtmlService.createTemplate(
+    '<style type="text/css">' +
+    '	button#oauth {' +
+    '		padding: 7px 16px 8px;' +
+    '		margin: 0;' +
+    '		font-size: 12.5px;' +
+    '		display: inline-block;' +
+    '		zoom: 1;' +
+    '		cursor: pointer;' +
+    '		white-space: nowrap;' +
+    '		outline: none;' +
+    '		font-family: -apple-system, BlinkMacSystemFont, Roboto, Helvetica Neue, sans-serif;' +
+    '		vertical-align: top;' +
+    '		line-height: 15px;' +
+    '		text-align: center;' +
+    '		text-decoration: none;' +
+    '		background: none;' +
+    '		background-color: #5181b8;' +
+    '		color: #fff;' +
+    '		border: 0;' +
+    '		border-radius: 4px;' +
+    '		box-sizing: border-box;' +
+    '		width: 100%;' +
+    '	}' +
+    '</style>' +
+    '<script>' +
+    '	function redirect() {' +
+    '		window.open("<?= authorizationUrl ?>", "_blank");' +
+    '	}' +
+    '</script>' +
+    '<p>' +
+    'После нажатия на кнопку ниже браузер перенаправит вас на сайт ВК,' +
+    ' где нужно будет авторизоваться и разрешить приложению доступ к вашим данным.' +
+    '</p>' +
+    '<p>' +
+    'После окончания авторизации вас перенаправит на страницу с надписью:' +
+    ' "Пожалуйста, не копируйте данные из адресной строки для сторонних сайтов.' +
+    ' Таким образом Вы можете потерять доступ к Вашему аккаунту."' +
+    '</p>' +
+    '<p>' +
+    'Вам нужно будет скопировать адрес этой страницы из адресной строки в ячейку B1.' +
+    '</p>' +
+    '<button id="oauth" onclick="redirect()">Авторизоваться в ВК</button>'
+  );
+  
   template.authorizationUrl = authorizationUrl;
   var page = template.evaluate();
   
@@ -78,12 +85,19 @@ function initializeActiveSheet() {
   sheetOptions.getRange('B3').setValue(new Date());
   sheetOptions.getRange('B3').setNumberFormat("dd.MM.yyyy hh:mm:ss");
   
-  sheetOptions.getRange('B1').setNote('После запуска скрипта в правой части экрана появится ссылка на авторизацию и предоставление прав в ВК.' +
-                                      ' При успешной авторизации произойдет перенаправление на страницу с адресом формата:' +
-                                      ' https://oauth.vk.com/blank.html#access_token=XXXXX&expires_in=0&user_id=39199554&state=123456.' +
-                                      ' Ссылку на эту страницу нужно вставить в это поле.');
-  sheetOptions.getRange('B2').setNote('URL трансляции в формате: https://vk.com/videoXXXXX_XXXXX. Его можно получить под видео: Поделиться -> Экспортировать -> Прямая ссылка.');
-  sheetOptions.getRange('B3').setNote('Скрипт будет выполняться до тех пор, пока не наступит время, указанное в ячейке.');
+  sheetOptions.getRange('B1').setNote(
+    'После запуска скрипта в правой части экрана появится ссылка на авторизацию и предоставление прав в ВК.' +
+    ' При успешной авторизации произойдет перенаправление на страницу с адресом формата:' +
+    ' https://oauth.vk.com/blank.html#access_token=XXXXX&expires_in=0&user_id=39199554&state=123456.' +
+    ' Ссылку на эту страницу нужно вставить в это поле.'
+  );
+  sheetOptions.getRange('B2').setNote(
+    'URL трансляции в формате: https://vk.com/videoXXXXX_XXXXX.' +
+    ' Его можно получить под видео: Поделиться -> Экспортировать -> Прямая ссылка.'
+  );
+  sheetOptions.getRange('B3').setNote(
+    'Скрипт будет выполняться до тех пор, пока не наступит время, указанное в ячейке.'
+  );
   
   sheetOptions.getRange('A1:A3').setFontWeight('bold');
   sheetOptions.getRange('A1:B3').setBorder(true, true, true, true, true, true);
@@ -239,8 +253,13 @@ function startReceiveCommentsLoop(e) {
     var properties = getGlobalPropertiesOfAScript(scriptId);
     var timeBegin = Date.now();
     
-    // While script has run less than 5 minutes, current date is less than date in the cell and while global properties of the script exist
-    while (Date.now() - timeBegin < 1000 * 60 * 5 && sheetOptions.getRange('B3').getValue().valueOf() > Date.now() && PropertiesService.getScriptProperties().getProperty(scriptId)) {
+    // While script has run less than 5 minutes, current date is less than date in the cell
+    // and while global properties of the script exist
+    while (
+      Date.now() - timeBegin < 1000 * 60 * 5
+      && sheetOptions.getRange('B3').getValue().valueOf() > Date.now()
+      && PropertiesService.getScriptProperties().getProperty(scriptId)
+    ) {
       // Pass: userToken, ownerId, videoId, offset, lineNumberOnSheet
       // Receive: offset, lineNumberOnSheet
       var resp = receiveComments(properties[0], properties[1], properties[2], properties[3], properties[4]);
@@ -261,7 +280,8 @@ function getGlobalPropertiesOfAScript(scriptId) {
 
 // Main logic function
 function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet) {
-  var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + 0 + '&access_token=' + userToken + '&v=5.95';
+  var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&' +
+    'owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + 0 + '&access_token=' + userToken + '&v=5.95';
   
   var response = JSON.parse(UrlFetchApp.fetch(url).getContentText()).response;
   
@@ -281,7 +301,8 @@ function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet)
       var count = 100;
     }
     
-    var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + i + '&access_token=' + userToken + '&v=5.95';
+    var url = 'https://api.vk.com/method/video.getComments?count=100&sort=asc&' +
+      'owner_id=' + ownerId + '&video_id=' + videoId + '&offset=' + i + '&access_token=' + userToken + '&v=5.95';
     var response = JSON.parse(UrlFetchApp.fetch(url).getContentText()).response;
 
     // Add all user ids to a string and separate them by commas
@@ -293,7 +314,8 @@ function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet)
     }
     user_ids = user_ids.slice(0, -1);
     
-    var urlUser = 'https://api.vk.com/method/users.get?user_ids=' + user_ids + '&fields=photo_50&access_token=' + userToken + '&v=5.95';
+    var urlUser = 'https://api.vk.com/method/users.get?' +
+      'user_ids=' + user_ids + '&fields=photo_50&access_token=' + userToken + '&v=5.95';
     var responseUser = JSON.parse(UrlFetchApp.fetch(urlUser).getContentText()).response;
     
     var userNames = {};    
