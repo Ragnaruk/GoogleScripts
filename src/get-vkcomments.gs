@@ -299,7 +299,7 @@ function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet)
   
   for (var i = offset; i < numberOfComments; i += 100) {
     // Time the speed of completion to avoid the limit of 3 requests / second
-    var timeBegin = Date.now()
+    var timeBegin = Date.now();
     
     if (numberOfComments - i < 100) {
       var count = numberOfComments - i;
@@ -324,7 +324,7 @@ function receiveComments(userToken, ownerId, videoId, offset, lineNumberOnSheet)
       'user_ids=' + user_ids + '&fields=photo_50&access_token=' + userToken + '&v=5.95';
     var responseUser = JSON.parse(UrlFetchApp.fetch(urlUser).getContentText()).response;
     
-    var userNames = {};    
+    var userNames = {};
     var userAvatars = {};
     
     for (var j = 0; j < responseUser.length; j++) {
