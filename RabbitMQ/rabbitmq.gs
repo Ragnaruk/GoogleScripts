@@ -35,7 +35,7 @@ function gradeAnswer(answer, studentID) {
     };
     
     PropertiesService.getScriptProperties().setProperty("submissionID", ++submissionID);
-    PropertiesService.getScriptProperties().setProperty(JSON.stringify(message.xqueue_header), studentID);
+    PropertiesService.getScriptProperties().setProperty(JSON.stringify(message.xqueue_header), studentID.toString());
     Logger.log("message: " + JSON.stringify(message));
     
     sendMessageToRabbitMQ(message);
@@ -101,7 +101,7 @@ function receiveMessageFromRabbitMQ() {
             payload = messages[i].payload.replace("\'", "\"", "g").replace("True", "true", "g").replace("False", "false", "g");
             payload = JSON.parse(payload);
             if (PropertiesService.getScriptProperties().getProperty(JSON.stringify(payload.xqueue_header))) {
-                var studentID = PropertiesService.getScriptProperties().getProperty(payload.xqueue_header);
+                var studentID = PropertiesService.getScriptProperties().getProperty(JSON.stringify(payload.xqueue_header));
                 
                 processGrade(payload.xqueue_body, studentID)
             } else {
